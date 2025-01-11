@@ -2,7 +2,7 @@
 
 Solved [ComfyUI-PuLID-Flux](https://github.com/balazik/ComfyUI-PuLID-Flux) model pollution problem and supported using with TeaCache.
 
-Must uninstall or disable `ComfyUI-PuLID-Flux` and other PuLID-Flux nodes before install this plugin. Due to certain reasons, I used the same node name `ApplyPuridFlux`.
+Must uninstall or disable `ComfyUI-PuLID-Flux` and other PuLID-Flux nodes before install this plugin. Due to certain reasons, I used the same node name `ApplyPulidFlux`.
 
 
 ## Preview (Image with WorkFlow)
