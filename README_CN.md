@@ -29,7 +29,7 @@
   - 同 [ComfyUI-PuLID-Flux](https://github.com/balazik/ComfyUI-PuLID-Flux)
 - ApplyPulidFlux
   - 解决了原插件中模型污染的问题
-  - `attn_mask`可能不能正确工作， 因为我不知道如何实现它， 尝试了多种方式效果都为达到预期
+  - `attn_mask`可能不能正确工作， 因为我不知道如何实现它， 尝试了多种方式效果都未能达到预期
 - FixPulidFluxPatch
   - 如果想使用 [TeaCache](https://github.com/ali-vilab/TeaCache)加速, 必须加在 `ApplyPulidFlux` 节点之后, 并在后面连接节点 [`FluxForwardOverrider` and `ApplyTeaCachePatch`](https://github.com/lldacing/ComfyUI_Patches_ll).
 
