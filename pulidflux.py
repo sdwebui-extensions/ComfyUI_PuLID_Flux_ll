@@ -1,3 +1,4 @@
+import types
 
 import torch
 from torch import nn, Tensor
@@ -6,8 +7,7 @@ from torchvision.transforms import functional
 import os
 import logging
 import folder_paths
-import comfy.utils
-import comfy.model_management
+import comfy
 from insightface.app import FaceAnalysis
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
@@ -348,26 +348,32 @@ class FixPulidFluxPatch:
         return (model,)
 
 
-def set_hook():
-    comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid = comfy.ldm.flux.model.Flux.forward_orig
-    comfy.ldm.flux.model.Flux.forward_orig = pulid_forward_orig
+def set_hook(diffusion_model, target_forward_orig):
+    # comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid = comfy.ldm.flux.model.Flux.forward_orig
+    # comfy.ldm.flux.model.Flux.forward_orig = pulid_forward_orig
+    diffusion_model.old_forward_orig_for_pulid = types.MethodType(diffusion_model.forward_orig, diffusion_model)
+    diffusion_model.forward_orig = types.MethodType(target_forward_orig, diffusion_model)
 
-def clean_hook():
-    if hasattr(comfy.ldm.flux.model.Flux, 'old_forward_orig_for_pulid'):
-        comfy.ldm.flux.model.Flux.forward_orig = comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid
-        del comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid
+def clean_hook(diffusion_model):
+    # if hasattr(comfy.ldm.flux.model.Flux, 'old_forward_orig_for_pulid'):
+    #     comfy.ldm.flux.model.Flux.forward_orig = comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid
+    #     del comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid
+    if hasattr(diffusion_model, 'old_forward_orig_for_pulid'):
+        diffusion_model.forward_orig = types.MethodType(diffusion_model.old_forward_orig_for_pulid, diffusion_model)
+        del diffusion_model.old_forward_orig_for_pulid
 
 def pulid_outer_sample_wrappers_with_override(wrapper_executor, noise, latent_image, sampler, sigmas, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
     cfg_guider = wrapper_executor.class_obj
     PULID_model_patch = add_model_patch_option(cfg_guider, PatchKeys.pulid_patch_key_attrs)
     PULID_model_patch['latent_image_shape'] = latent_image.shape
 
-    set_hook()
+    diffusion_model = cfg_guider.model_patcher.model.diffusion_model
+    set_hook(diffusion_model, pulid_forward_orig)
     try :
         out = wrapper_executor(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
     finally:
         del PULID_model_patch['latent_image_shape']
-        clean_hook()
+        clean_hook(diffusion_model)
 
     return out
 
