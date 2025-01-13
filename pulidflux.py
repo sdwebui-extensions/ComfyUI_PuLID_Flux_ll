@@ -351,7 +351,7 @@ class FixPulidFluxPatch:
 def set_hook(diffusion_model, target_forward_orig):
     # comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid = comfy.ldm.flux.model.Flux.forward_orig
     # comfy.ldm.flux.model.Flux.forward_orig = pulid_forward_orig
-    diffusion_model.old_forward_orig_for_pulid = types.MethodType(diffusion_model.forward_orig, diffusion_model)
+    diffusion_model.old_forward_orig_for_pulid = diffusion_model.forward_orig
     diffusion_model.forward_orig = types.MethodType(target_forward_orig, diffusion_model)
 
 def clean_hook(diffusion_model):
@@ -359,7 +359,7 @@ def clean_hook(diffusion_model):
     #     comfy.ldm.flux.model.Flux.forward_orig = comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid
     #     del comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid
     if hasattr(diffusion_model, 'old_forward_orig_for_pulid'):
-        diffusion_model.forward_orig = types.MethodType(diffusion_model.old_forward_orig_for_pulid, diffusion_model)
+        diffusion_model.forward_orig = diffusion_model.old_forward_orig_for_pulid
         del diffusion_model.old_forward_orig_for_pulid
 
 def pulid_outer_sample_wrappers_with_override(wrapper_executor, noise, latent_image, sampler, sigmas, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
