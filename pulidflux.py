@@ -320,6 +320,9 @@ class ApplyPulidFlux:
         if len(model.get_wrappers(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, wrappers_name)) == 0:
             # Just add it once when connecting in series
             model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, wrappers_name, pulid_outer_sample_wrappers_with_override)
+        if len(model.get_wrappers(comfy.patcher_extension.WrappersMP.APPLY_MODEL, wrappers_name)) == 0:
+            # Just add it once when connecting in series
+            model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.APPLY_MODEL, wrappers_name, pulid_apply_model_wrappers)
 
         return (model,)
 
@@ -336,8 +339,13 @@ class FixPulidFluxPatch:
     RETURN_TYPES = ("MODEL",)
     FUNCTION = "fix_pulid_patch"
     CATEGORY = "pulid"
+
     def fix_pulid_patch(self, model):
         model = model.clone()
+
+        if len(model.get_wrappers(comfy.patcher_extension.WrappersMP.APPLY_MODEL, wrappers_name)) > 0:
+            model.remove_wrappers_with_key(comfy.patcher_extension.WrappersMP.APPLY_MODEL, wrappers_name)
+
         if len(model.get_wrappers(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, wrappers_name)) > 0:
             model.remove_wrappers_with_key(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, wrappers_name)
             model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, wrappers_name, pulid_outer_sample_wrappers)
@@ -381,8 +389,24 @@ def pulid_outer_sample_wrappers(wrapper_executor, noise, latent_image, sampler, 
     cfg_guider = wrapper_executor.class_obj
     PULID_model_patch = add_model_patch_option(cfg_guider, PatchKeys.pulid_patch_key_attrs)
     PULID_model_patch['latent_image_shape'] = latent_image.shape
+    try:
+        out = wrapper_executor(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+    finally:
+        del PULID_model_patch['latent_image_shape']
 
-    out = wrapper_executor(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+    return out
+
+def pulid_apply_model_wrappers(wrapper_executor, x, t, c_concat=None, c_crossattn=None, control=None, transformer_options={}, **kwargs):
+    base_model = wrapper_executor.class_obj
+    PULID_model_patch = transformer_options.get(PatchKeys.pulid_patch_key_attrs, {})
+    PULID_model_patch['timesteps'] = base_model.model_sampling.timestep(t).float()
+    try:
+        transformer_options[PatchKeys.running_net_model] = base_model.diffusion_model
+        out = wrapper_executor(x, t, c_concat, c_crossattn, control, transformer_options, **kwargs)
+    finally:
+        if PatchKeys.running_net_model in transformer_options:
+            del transformer_options[PatchKeys.running_net_model]
+        del PULID_model_patch['timesteps']
 
     return out
 

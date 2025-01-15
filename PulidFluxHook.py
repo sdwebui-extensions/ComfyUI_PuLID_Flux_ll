@@ -19,7 +19,10 @@ def set_model_dit_patch_replace(model, patch_kwargs, key):
 
     if key not in to["patches_replace"]["dit"]:
         if "double_block" in key:
-            to["patches_replace"]["dit"][key] = DitDoubleBlockReplace(pulid_patch, **patch_kwargs)
+            if key == ("double_block", 18):
+                to["patches_replace"]["dit"][key] = LastDitDoubleBlockReplace(pulid_patch, **patch_kwargs)
+            else:
+                to["patches_replace"]["dit"][key] = DitDoubleBlockReplace(pulid_patch, **patch_kwargs)
         else:
             to["patches_replace"]["dit"][key] = DitSingleBlockReplace(pulid_patch, **patch_kwargs)
         model.model_options["transformer_options"] = to
@@ -32,7 +35,6 @@ def pulid_patch(img, pulid_model=None, ca_idx=None, weight=1.0, embedding=None, 
         pulid_img = pulid_img * mask
 
     return pulid_img
-
 
 class DitDoubleBlockReplace:
     def __init__(self, callback, **kwargs):
@@ -78,6 +80,14 @@ class DitDoubleBlockReplace:
         out['img'] = img
         return out
 
+
+class LastDitDoubleBlockReplace(DitDoubleBlockReplace):
+    def __call__(self, input_args, extra_options):
+        out = super().__call__(input_args, extra_options)
+        transformer_options = extra_options["transformer_options"]
+        pulid_temp_attrs = transformer_options.get(PatchKeys.pulid_patch_key_attrs, {})
+        pulid_temp_attrs["double_blocks_txt"] = out['txt']
+        return out
 
 class DitSingleBlockReplace:
     def __init__(self, callback, **kwargs):
@@ -164,8 +174,8 @@ def pulid_forward_orig(
 
     blocks_replace = patches_replace.get("dit", {})
 
-    pulid_temp_attrs = transformer_options.get(PatchKeys.pulid_patch_key_attrs, {})
-    pulid_temp_attrs['timesteps'] = timesteps
+    # pulid_temp_attrs = transformer_options.get(PatchKeys.pulid_patch_key_attrs, {})
+    # pulid_temp_attrs['timesteps'] = timesteps
 
     for i, block in enumerate(self.double_blocks):
         # 0 -> 18
@@ -205,7 +215,7 @@ def pulid_forward_orig(
                 if add is not None:
                     img += add
 
-    pulid_temp_attrs['double_blocks_txt'] = txt
+    # pulid_temp_attrs['double_blocks_txt'] = txt
 
     img = torch.cat((txt, img), 1)
 
