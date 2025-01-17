@@ -197,7 +197,6 @@ class ApplyPulidFlux:
         eva_clip.to(device, dtype=dtype)
         pulid_flux.to(device, dtype=dtype)
 
-        # TODO: Add masking support!
         if attn_mask is not None:
             if attn_mask.dim() > 3:
                 attn_mask = attn_mask.squeeze(-1)
@@ -301,7 +300,6 @@ class ApplyPulidFlux:
             "embedding": cond,
             "sigma_start": sigma_start,
             "sigma_end": sigma_end,
-            # don't know how to apply mask
             "mask": attn_mask
         }
 
@@ -324,6 +322,7 @@ class ApplyPulidFlux:
             # Just add it once when connecting in series
             model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.APPLY_MODEL, wrappers_name, pulid_apply_model_wrappers)
 
+        del eva_clip, face_analysis, pulid_flux
         return (model,)
 
 
