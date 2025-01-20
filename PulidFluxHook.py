@@ -30,7 +30,7 @@ def set_model_dit_patch_replace(model, patch_kwargs, key):
         to["patches_replace"]["dit"][key].add(pulid_patch, **patch_kwargs)
 
 def pulid_patch(img, pulid_model=None, ca_idx=None, weight=1.0, embedding=None, mask=None, transformer_options={}):
-    pulid_img = weight * pulid_model.model.pulid_ca[ca_idx](embedding, img)
+    pulid_img = weight * pulid_model.model.pulid_ca[ca_idx].to(img.device)(embedding, img)
     if mask is not None:
         pulid_temp_attrs = transformer_options.get(PatchKeys.pulid_patch_key_attrs, {})
         latent_image_shape = pulid_temp_attrs.get("latent_image_shape", None)
