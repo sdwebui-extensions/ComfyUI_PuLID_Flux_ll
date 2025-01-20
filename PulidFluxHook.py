@@ -65,7 +65,7 @@ class DitDoubleBlockReplace:
     def __call__(self, input_args, extra_options):
         transformer_options = extra_options["transformer_options"]
         pulid_temp_attrs = transformer_options.get(PatchKeys.pulid_patch_key_attrs, {})
-        sigma = pulid_temp_attrs["timesteps"].detach().cpu().item()
+        sigma = pulid_temp_attrs["timesteps"][0].detach().cpu().item()
         out = extra_options["original_block"](input_args)
         img = out['img']
         temp_img = img
