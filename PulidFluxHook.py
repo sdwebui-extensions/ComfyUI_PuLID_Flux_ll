@@ -40,8 +40,8 @@ def pulid_patch(img, pulid_model=None, ca_idx=None, weight=1.0, embedding=None, 
             patch_size = transformer_options[PatchKeys.running_net_model].patch_size
             mask = comfy.ldm.common_dit.pad_to_patch_size(mask, (patch_size, patch_size))
             mask = rearrange(mask, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=patch_size, pw=patch_size)
-            # (b, seq_len, _) =>(b, seq_len, seq_len)
-            mask = mask[..., 0].unsqueeze(-1).repeat(1, 1, mask.shape[1]).to(dtype=pulid_img.dtype)
+            # (b, seq_len, _) =>(b, seq_len, pulid.dim)
+            mask = mask[..., 0].unsqueeze(-1).repeat(1, 1, pulid_img.shape[-1]).to(dtype=pulid_img.dtype)
             del patch_size, latent_image_shape
 
         pulid_img = pulid_img * mask
