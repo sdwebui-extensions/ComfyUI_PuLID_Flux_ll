@@ -3,6 +3,7 @@
 - Solved [ComfyUI-PuLID-Flux](https://github.com/balazik/ComfyUI-PuLID-Flux) model pollution problem.
 - Supported use with `TeaCache` (Need use with [ComfyUI_Patches_ll](https://github.com/lldacing/ComfyUI_Patches_ll)).
 - Supported use with [Comfy-WaveSpeed](https://github.com/chengzeyi/Comfy-WaveSpeed), supported by `Comfy-WaveSpeed` in [commit-36ba3c8](https://github.com/chengzeyi/Comfy-WaveSpeed/commit/36ba3c8b74735d4521828507a4bf323df1a9a9d0).
+- Supported simple use with `First Block Cache` (Can use with [ComfyUI_Patches_ll](https://github.com/lldacing/ComfyUI_Patches_ll)).
 
 Must uninstall or disable `ComfyUI-PuLID-Flux` and other PuLID-Flux nodes before install this plugin. Due to certain reasons, I used the same node's name `ApplyPulidFlux`.
 

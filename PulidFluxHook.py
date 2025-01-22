@@ -70,7 +70,7 @@ class DitDoubleBlockReplace:
         img = out['img']
         temp_img = img
         for i, callback in enumerate(self.callback):
-            if sigma <= self.kwargs[i]["sigma_start"] and sigma >= self.kwargs[i]["sigma_end"]:
+            if self.kwargs[i]["sigma_start"] >= sigma >= self.kwargs[i]["sigma_end"]:
                 img = img + callback(temp_img,
                                      pulid_model=self.kwargs[i]['pulid_model'],
                                      ca_idx=self.kwargs[i]['ca_idx'],
@@ -118,7 +118,7 @@ class DitSingleBlockReplace:
         real_img, txt = img[:, txt.shape[1]:, ...], img[:, :txt.shape[1], ...]
         temp_img = real_img
         for i, callback in enumerate(self.callback):
-            if sigma <= self.kwargs[i]["sigma_start"] and sigma >= self.kwargs[i]["sigma_end"]:
+            if self.kwargs[i]["sigma_start"] >= sigma >= self.kwargs[i]["sigma_end"]:
                 real_img = real_img + callback(temp_img,
                                                pulid_model=self.kwargs[i]['pulid_model'],
                                                ca_idx=self.kwargs[i]['ca_idx'],
@@ -159,9 +159,8 @@ def pulid_forward_orig(
     img = self.img_in(img)
     vec = self.time_in(timestep_embedding(timesteps, 256).to(img.dtype))
     if self.params.guidance_embed:
-        if guidance is None:
-            raise ValueError("Didn't get guidance strength for guidance distilled model.")
-        vec = vec + self.guidance_in(timestep_embedding(guidance, 256).to(img.dtype))
+        if guidance is not None:
+            vec = vec + self.guidance_in(timestep_embedding(guidance, 256).to(img.dtype))
 
     vec = vec + self.vector_in(y)
     txt = self.txt_in(txt)
@@ -170,9 +169,6 @@ def pulid_forward_orig(
     pe = self.pe_embedder(ids)
 
     blocks_replace = patches_replace.get("dit", {})
-
-    # pulid_temp_attrs = transformer_options.get(PatchKeys.pulid_patch_key_attrs, {})
-    # pulid_temp_attrs['timesteps'] = timesteps
 
     for i, block in enumerate(self.double_blocks):
         # 0 -> 18
@@ -211,8 +207,6 @@ def pulid_forward_orig(
                 add = control_i[i]
                 if add is not None:
                     img += add
-
-    # pulid_temp_attrs['double_blocks_txt'] = txt
 
     img = torch.cat((txt, img), 1)
 
