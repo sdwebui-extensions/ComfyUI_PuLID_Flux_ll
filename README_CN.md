@@ -7,6 +7,8 @@
 
 在安装此插件之前，必须卸载或禁用`ComfyUI-PuLID-Flux`和其他PuLID Flux节点, 因为由于某些原因，我使用了同样的节点名`ApplyPulidFlux`
 
+ComfyUI主体版本需要>=0.3.7
+
 ## 预览 (图片含工作流)
 ![save api extended](examples/PuLID_with_speedup.png)
 ![save api extended](examples/PuLID_with_attn_mask.png)

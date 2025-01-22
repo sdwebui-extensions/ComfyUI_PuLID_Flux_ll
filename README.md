@@ -7,6 +7,7 @@
 
 Must uninstall or disable `ComfyUI-PuLID-Flux` and other PuLID-Flux nodes before install this plugin. Due to certain reasons, I used the same node's name `ApplyPulidFlux`.
 
+Need upgrade ComfyUI Version>=0.3.7
 
 ## Preview (Image with WorkFlow)
 ![save api extended](examples/PuLID_with_speedup.png)
