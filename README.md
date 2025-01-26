@@ -9,6 +9,12 @@ Must uninstall or disable `ComfyUI-PuLID-Flux` and other PuLID-Flux nodes before
 
 Need upgrade ComfyUI Version>=0.3.7
 
+## Update logs
+### 2025.01.27
+- Changed the model path of facexlib to `ComfyUI/models/facexlib/`.
+- When automatically downloading, modify the path of Antelope v2 model to `ComfyUI/models/insightface/models/antelopev2/`.
+- Changed the model path of EVA_CLIP_L_14_336 to `ComfyUI/models/clip/`.
+
 ## Preview (Image with WorkFlow)
 ![save api extended](examples/PuLID_with_speedup.png)
 ![save api extended](examples/PuLID_with_attn_mask.png)
@@ -24,17 +30,29 @@ Need upgrade ComfyUI Version>=0.3.7
     # restart ComfyUI
 ```
 
-## Model
-Please see [ComfyUI-PuLID-Flux](https://github.com/balazik/ComfyUI-PuLID-Flux)
+## Models
+### Available Flux models
+- 32bit/16bit (~22GB VRAM): [model](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/flux1-dev.safetensors), [encoder](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/t5xxl_fp16.safetensors)
+- 8bit gguf (~12GB VRAM): [model](https://huggingface.co/city96/FLUX.1-dev-gguf/blob/main/flux1-dev-Q8_0.gguf), [encoder](https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/blob/main/t5-v1_1-xxl-encoder-Q8_0.gguf)
+- 8 bit FP8 e5m2 (~12GB VRAM): [model](https://huggingface.co/Kijai/flux-fp8/blob/main/flux1-dev-fp8-e5m2.safetensors), [encoder](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/t5xxl_fp8_e4m3fn.safetensors)
+- 8 bit FP8 e4m3fn (~12GB VRAM): [model](https://huggingface.co/Kijai/flux-fp8/blob/main/flux1-dev-fp8-e4m3fn.safetensors), [encoder](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/t5xxl_fp8_e4m3fn.safetensors)
+- Clip and VAE (for all models): [clip](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/clip_l.safetensors), [vae](https://huggingface.co/black-forest-labs/FLUX.1-schnell/blob/main/ae.safetensors)
 
+#### For GGUF models you will need to install [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF) 
+
+### PuLID models
+- Download [PuLID-Flux](https://huggingface.co/guozinan/PuLID/resolve/main/pulid_flux_v0.9.1.safetensors?download=true) => `ComfyUI/models/pulid/`.
+- (Support auto-download) Download [EVA02-CLIP-L-14-336](https://huggingface.co/QuanSun/EVA-CLIP/blob/main/EVA02_CLIP_L_336_psz14_s6B.pt?download=true) => `ComfyUI/models/clip/`.
+- (Support auto-download) Download all models like `*.onnx` from [AntelopeV2](https://huggingface.co/MonsterMMORPG/tools/tree/main) => `ComfyUI/models/insightface/models/antelopev2/`.
+- (Support auto-download) Download [parsing_bisenet](https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_bisenet.pth), [parsing_parsenet](https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_parsenet.pth) and [Resnet50](https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth) => `ComfyUI/models/facexlib/`.
 
 ## Nodes
 - PulidFluxModelLoader
-  - See [ComfyUI-PuLID-Flux](https://github.com/balazik/ComfyUI-PuLID-Flux)
+  - See chapter [PuLID models](#pulid-models)
 - PulidFluxInsightFaceLoader
-  - See [ComfyUI-PuLID-Flux](https://github.com/balazik/ComfyUI-PuLID-Flux)
+  - See chapter [PuLID models](#pulid-models)
 - PulidFluxEvaClipLoader
-  - See [ComfyUI-PuLID-Flux](https://github.com/balazik/ComfyUI-PuLID-Flux)
+  - See chapter [PuLID models](#pulid-models)
 - ApplyPulidFlux
   - Solved the model pollution problem of the original plugin ComfyUI-PuLID-Flux
   - `attn_mask` ~~may not work correctly (I have no idea how to apply it, I have tried multiple methods and the results have been not satisfactory)~~ works now.

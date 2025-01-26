@@ -223,6 +223,7 @@ def create_model(
         pretrained_visual_model: str = None,
         pretrained_text_model: str = None,
         cache_dir: Optional[str] = None,
+        local_dir: Optional[str] = None,
         skip_list: list  = [],
 ):
     model_name = model_name.replace('/', '-')  # for callers using old naming with / in ViT names
@@ -276,7 +277,7 @@ def create_model(
             checkpoint_path = ''
             pretrained_cfg = get_pretrained_cfg(model_name, pretrained)
             if pretrained_cfg:
-                checkpoint_path = download_pretrained(pretrained_cfg, cache_dir=cache_dir)
+                checkpoint_path = download_pretrained(pretrained_cfg, cache_dir=cache_dir, local_dir=local_dir)
             elif os.path.exists(pretrained):
                 checkpoint_path = pretrained
 
@@ -372,6 +373,7 @@ def create_model_and_transforms(
         image_mean: Optional[Tuple[float, ...]] = None,
         image_std: Optional[Tuple[float, ...]] = None,
         cache_dir: Optional[str] = None,
+        local_dir: Optional[str] = None,
         skip_list: list = [],
 ):
     model = create_model(
@@ -389,6 +391,7 @@ def create_model_and_transforms(
         pretrained_visual_model=pretrained_visual_model,
         pretrained_text_model=pretrained_text_model,
         cache_dir=cache_dir,
+        local_dir=local_dir,
         skip_list=skip_list,
     )
 

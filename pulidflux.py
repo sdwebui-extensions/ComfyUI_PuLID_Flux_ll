@@ -1,7 +1,10 @@
 import types
+import zipfile
 
 import torch
-from torch import nn, Tensor
+from insightface.utils.download import download_file
+from insightface.utils.storage import BASE_REPO_URL
+from torch import nn
 from torchvision import transforms
 from torchvision.transforms import functional
 import os
@@ -19,14 +22,30 @@ from .encoders_flux import IDFormer, PerceiverAttentionCA
 from .PulidFluxHook import pulid_forward_orig, set_model_dit_patch_replace, pulid_enter, pulid_patch_double_blocks_after
 from .patch_util import PatchKeys, add_model_patch_option, set_model_patch
 
-INSIGHTFACE_DIR = os.path.join(folder_paths.models_dir, "insightface")
 
-MODELS_DIR = os.path.join(folder_paths.models_dir, "pulid")
-if "pulid" not in folder_paths.folder_names_and_paths:
-    current_paths = [MODELS_DIR]
-else:
-    current_paths, _ = folder_paths.folder_names_and_paths["pulid"]
-folder_paths.folder_names_and_paths["pulid"] = (current_paths, folder_paths.supported_pt_extensions)
+def set_extra_config_model_path(extra_config_models_dir_key, models_dir_name:str):
+    models_dir_default = os.path.join(folder_paths.models_dir, models_dir_name)
+    if extra_config_models_dir_key not in folder_paths.folder_names_and_paths:
+        folder_paths.folder_names_and_paths[extra_config_models_dir_key] = (
+            [os.path.join(folder_paths.models_dir, models_dir_name)], folder_paths.supported_pt_extensions)
+    else:
+        if not os.path.exists(models_dir_default):
+            os.makedirs(models_dir_default, exist_ok=True)
+        folder_paths.add_model_folder_path(extra_config_models_dir_key, models_dir_default, is_default=True)
+
+set_extra_config_model_path("pulid", "pulid")
+set_extra_config_model_path("insightface", "insightface")
+set_extra_config_model_path("facexlib", "facexlib")
+
+INSIGHTFACE_DIR = folder_paths.get_folder_paths("insightface")[0]
+FACEXLIB_DIR = folder_paths.get_folder_paths("facexlib")[0]
+
+# MODELS_DIR = os.path.join(folder_paths.models_dir, "pulid")
+# if "pulid" not in folder_paths.folder_names_and_paths:
+#     current_paths = [MODELS_DIR]
+# else:
+#     current_paths, _ = folder_paths.folder_names_and_paths["pulid"]
+# folder_paths.folder_names_and_paths["pulid"] = (current_paths, folder_paths.supported_pt_extensions)
 
 class PulidFluxModel(nn.Module):
     def __init__(self):
@@ -115,6 +134,29 @@ class PulidFluxModelLoader:
 
         return (model_patcher,)
 
+def download_insightface_model(sub_dir, name, force=False, root='~/.insightface'):
+    # Copied and modified from insightface.utils.storage.download
+    # Solve https://github.com/deepinsight/insightface/issues/2711
+    _root = os.path.expanduser(root)
+    dir_path = os.path.join(_root, sub_dir, name)
+    if os.path.exists(dir_path) and not force:
+        return dir_path
+    print('download_path:', dir_path)
+    zip_file_path = os.path.join(_root, sub_dir, name + '.zip')
+    model_url = "%s/%s.zip"%(BASE_REPO_URL, name)
+    download_file(model_url,
+             path=zip_file_path,
+             overwrite=True)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    # zip file has contains ${name}
+    real_dir_path = os.path.join(_root, sub_dir)
+    with zipfile.ZipFile(zip_file_path) as zf:
+        zf.extractall(real_dir_path)
+    #os.remove(zip_file_path)
+    return dir_path
+
 class PulidFluxInsightFaceLoader:
     @classmethod
     def INPUT_TYPES(s):
@@ -129,7 +171,9 @@ class PulidFluxInsightFaceLoader:
     CATEGORY = "pulid"
 
     def load_insightface(self, provider):
-        model = FaceAnalysis(name="antelopev2", root=INSIGHTFACE_DIR, providers=[provider + 'ExecutionProvider',]) # alternative to buffalo_l
+        name = "antelopev2"
+        download_insightface_model("models", name, root=INSIGHTFACE_DIR)
+        model = FaceAnalysis(name=name, root=INSIGHTFACE_DIR, providers=[provider + 'ExecutionProvider', ]) # alternative to buffalo_l
         model.prepare(ctx_id=0, det_size=(640, 640))
 
         return (model,)
@@ -148,7 +192,12 @@ class PulidFluxEvaClipLoader:
     def load_eva_clip(self):
         from .eva_clip.factory import create_model_and_transforms
 
-        model, _, _ = create_model_and_transforms('EVA02-CLIP-L-14-336', 'eva_clip', force_custom_clip=True)
+        clip_file_path = folder_paths.get_full_path("text_encoders", 'EVA02_CLIP_L_336_psz14_s6B.pt')
+        if clip_file_path is None:
+            clip_dir = os.path.join(folder_paths.models_dir, "clip")
+        else:
+            clip_dir = os.path.dirname(clip_file_path)
+        model, _, _ = create_model_and_transforms('EVA02-CLIP-L-14-336', 'eva_clip', force_custom_clip=True, local_dir=clip_dir)
 
         model = model.visual
 
@@ -221,10 +270,11 @@ class ApplyPulidFlux:
             det_model='retinaface_resnet50',
             save_ext='png',
             device=device,
+            model_rootpath=FACEXLIB_DIR
         )
 
         face_helper.face_parse = None
-        face_helper.face_parse = init_parsing_model(model_name='bisenet', device=device)
+        face_helper.face_parse = init_parsing_model(model_name='bisenet', device=device, model_rootpath=FACEXLIB_DIR)
 
         bg_label = [0, 16, 18, 7, 8, 9, 14, 15]
         cond = []
