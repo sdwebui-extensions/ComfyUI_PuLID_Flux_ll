@@ -30,6 +30,19 @@ Need upgrade ComfyUI Version>=0.3.7
     # restart ComfyUI
 ```
 
+Tips:
+
+- If you use `ComfyUI_windows_portable` and encounter the following error, please see https://github.com/deepinsight/insightface/issues/2576
+```
+insightface/thirdparty/face3d/mesh/cython/mesh_core_cython.cpp(36): fatal error C1083: 无法打开包括文件: “Python.h”: No such file or directory
+      error: command 'd:\\installed\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\bin\\HostX86\\x64\\cl.exe' failed with exit code 2
+      [end of output]
+
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  ERROR: Failed building wheel for insightface
+Failed to build insightface
+```
+
 ## Models
 ### Available Flux models
 - 32bit/16bit (~22GB VRAM): [model](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/flux1-dev.safetensors), [encoder](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/t5xxl_fp16.safetensors)
