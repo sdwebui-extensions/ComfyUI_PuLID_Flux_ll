@@ -328,6 +328,10 @@ def download_pretrained(
         # 'org/model_name/filename.pt' form. To specify just the model id w/o filename and
         # use 'open_clip_pytorch_model.bin' default, there must be a trailing slash 'org/model_name/'.
         model_id, filename = os.path.split(download_hf_hub)
+        if local_dir is not None:
+            full_model_path = os.path.join(local_dir, filename)
+            if os.path.exists(full_model_path):
+                return full_model_path
         if filename:
             target = download_pretrained_from_hf(model_id, filename=filename, cache_dir=cache_dir, local_dir=local_dir)
         else:
