@@ -57,7 +57,7 @@ Failed to build insightface
 - Download [PuLID-Flux](https://huggingface.co/guozinan/PuLID/resolve/main/pulid_flux_v0.9.1.safetensors?download=true) => `ComfyUI/models/pulid/`.
 - (Support auto-download) Download [EVA02-CLIP-L-14-336](https://huggingface.co/QuanSun/EVA-CLIP/blob/main/EVA02_CLIP_L_336_psz14_s6B.pt?download=true) => `ComfyUI/models/clip/`.
 - (Support auto-download) Download all models like `*.onnx` from [AntelopeV2](https://huggingface.co/MonsterMMORPG/tools/tree/main) => `ComfyUI/models/insightface/models/antelopev2/`.
-- (Support auto-download) Download [parsing_bisenet](https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_bisenet.pth), [parsing_parsenet](https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_parsenet.pth) and [Resnet50](https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth) => `ComfyUI/models/facexlib/`.
+- (Support auto-download) Download [parsing_bisenet](https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_bisenet.pth), [parsing_parsenet](https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth) and [Resnet50](https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth) => `ComfyUI/models/facexlib/`.
 
 ## Nodes
 - PulidFluxModelLoader
