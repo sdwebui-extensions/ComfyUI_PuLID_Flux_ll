@@ -12,8 +12,7 @@ import logging
 import folder_paths
 import comfy
 from insightface.app import FaceAnalysis
-from facexlib.parsing import init_parsing_model
-from facexlib.utils.face_restoration_helper import FaceRestoreHelper
+from .face_restoration_helper import FaceRestoreHelper, get_face_by_index
 
 from comfy import model_management
 from .eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
@@ -226,6 +225,7 @@ class ApplyPulidFlux:
             },
             "optional": {
                 "attn_mask": ("MASK", ),
+                "options": ("OPTIONS",),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID"
@@ -236,7 +236,7 @@ class ApplyPulidFlux:
     FUNCTION = "apply_pulid_flux"
     CATEGORY = "pulid"
 
-    def apply_pulid_flux(self, model, pulid_flux, eva_clip, face_analysis, image, weight, start_at, end_at, attn_mask=None, unique_id=None):
+    def apply_pulid_flux(self, model, pulid_flux, eva_clip, face_analysis, image, weight, start_at, end_at, attn_mask=None, options={}, unique_id=None):
         model = model.clone()
 
         device = comfy.model_management.get_torch_device()
@@ -269,30 +269,27 @@ class ApplyPulidFlux:
             face_size=512,
             crop_ratio=(1, 1),
             det_model='retinaface_resnet50',
+            parsing_model='bisenet',
             save_ext='png',
             device=device,
             model_rootpath=FACEXLIB_DIR
         )
 
-        face_helper.face_parse = None
-        face_helper.face_parse = init_parsing_model(model_name='bisenet', device=device, model_rootpath=FACEXLIB_DIR)
-
         bg_label = [0, 16, 18, 7, 8, 9, 14, 15]
         cond = []
 
+        input_face_sort = options.get('input_faces_order', "large-small")
+        input_face_index = options.get('input_faces_index', 0)
         # Analyse multiple images at multiple sizes and combine largest area embeddings
         for i in range(image.shape[0]):
             # get insightface embeddings
+            bboxes = []
             iface_embeds = None
             for size in [(size, size) for size in range(640, 256, -64)]:
                 face_analysis.det_model.input_size = size
                 face_info = face_analysis.get(image[i])
                 if face_info:
-                    # Only use the maximum face
-                    # Removed the reverse=True from original code because we need the largest area not the smallest one!
-                    # Sorts the list in ascending order (smallest to largest),
-                    # then selects the last element, which is the largest face
-                    face_info = sorted(face_info, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]))[-1]
+                    face_info, index, bboxes = get_face_by_index(face_info, face_sort_rule=input_face_sort, face_index=input_face_index)
                     iface_embeds = torch.from_numpy(face_info.embedding).unsqueeze(0).to(device, dtype=dtype)
                     break
             else:
@@ -303,7 +300,7 @@ class ApplyPulidFlux:
             # get eva_clip embeddings
             face_helper.clean_all()
             face_helper.read_image(image[i])
-            face_helper.get_face_landmarks_5(only_keep_largest=True)
+            face_helper.get_face_landmarks_5(ref_sort_bboxes=bboxes, face_index=input_face_index)
             face_helper.align_warp_face()
 
             if len(face_helper.cropped_faces) == 0:
@@ -418,6 +415,143 @@ class FixPulidFluxPatch:
         return (model,)
 
 
+class PulidFluxOptions:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "input_faces_order": (
+                    ["left-right","right-left","top-bottom","bottom-top","small-large","large-small"],
+                    {
+                        "default": "large-small",
+                        "tooltip": "left-right: Sort the left boundary of bbox by column from left to right.\n"
+                                   "right-left: Reverse order of left-right (Sort the left boundary of bbox by column from right to left).\n"
+                                   "top-bottom: Sort the top boundary of bbox by row from top to bottom.\n"
+                                   "bottom-top: Reverse order of top-bottom (Sort the top boundary of bbox by row from bottom to top).\n"
+                                   "small-large: Sort the area of bbox from small to large.\n"
+                                   "large-small: Sort the area of bbox from large to small."
+                    }
+                ),
+                "input_faces_index": ("INT",
+                                      {
+                                          "default": 0, "min": 0, "max": 1000, "step": 1,
+                                          "tooltip": "If the value is greater than the size of bboxes, will set value to 0."
+                                      }),
+            }
+        }
+
+    RETURN_TYPES = ("OPTIONS",)
+    FUNCTION = "execute"
+    CATEGORY = "pulid"
+
+    def execute(self,input_faces_order, input_faces_index):
+        options: dict = {
+            "input_faces_order": input_faces_order,
+            "input_faces_index": input_faces_index,
+        }
+        return (options, )
+
+
+class PulidFluxFaceDetector:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "face_analysis": ("FACEANALYSIS", ),
+                "image": ("IMAGE",),
+                "options": ("OPTIONS",),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "IMAGE",)
+    RETURN_NAMES = ("embed_face", "align_face")
+    FUNCTION = "execute"
+    CATEGORY = "pulid"
+    OUTPUT_IS_LIST = (True, True,)
+
+    def execute(self, face_analysis, image, options):
+
+        device = comfy.model_management.get_torch_device()
+        face_helper = FaceRestoreHelper(
+            upscale_factor=1,
+            face_size=512,
+            crop_ratio=(1, 1),
+            det_model='retinaface_resnet50',
+            parsing_model='bisenet',
+            save_ext='png',
+            device=device,
+            model_rootpath=FACEXLIB_DIR
+        )
+
+        input_face_sort = options.get('input_faces_order', "large-small")
+        input_face_index = options.get('input_faces_index', 0)
+        # Analyse multiple images at multiple sizes and combine largest area embeddings
+        embed_faces=[]
+        align_faces=[]
+        image = tensor_to_image(image)
+        for i in range(image.shape[0]):
+            bboxes = []
+            for size in [(size, size) for size in range(640, 256, -64)]:
+                face_analysis.det_model.input_size = size
+                face_info = face_analysis.get(image[i])
+                if face_info:
+                    face_info, index, bboxes = get_face_by_index(face_info, face_sort_rule=input_face_sort,
+                                                         face_index=input_face_index)
+                    embed_faces.append(crop_image(image[i], face_info.bbox, margin=10))
+                    break
+            else:
+                # No face detected, skip this image
+                logging.warning(f'Warning: No face detected in image {str(i)}')
+                continue
+
+            # get eva_clip embeddings
+            face_helper.clean_all()
+            face_helper.read_image(image[i])
+            face_helper.get_face_landmarks_5(ref_sort_bboxes=bboxes, face_index=input_face_index)
+            face_helper.align_warp_face()
+
+            if len(face_helper.cropped_faces) == 0:
+                # No face detected, skip this image
+                continue
+
+            # Get aligned face image
+            align_face = face_helper.cropped_faces[0]
+            align_faces.append(image_to_tensor(align_face).unsqueeze(0))
+            del bboxes, align_face
+        del face_helper, image
+        if len(embed_faces) == 0:
+            # No face detected, skip this image
+            logging.warning(f'Warning: No embed face detected in image')
+        if  len(align_faces) == 0:
+            logging.warning(f'Warning: No align face detected in image')
+        return embed_faces, align_faces,
+
+
+def crop_image(image, bbox, margin=0):
+    if len(image.shape) == 3:
+        image = image[None, ...]
+    image = image_to_tensor(image)
+    x, y, x1, y1 = bbox.astype(int)
+    w = x1 - x
+    h = y1 - y
+    image_height = image.shape[1]
+    image_width = image.shape[2]
+    # 左上角坐标
+    x = min(x, image_width)
+    y = min(y, image_height)
+    # 右下角坐标
+    to_x = min(w + x + margin, image_width)
+    to_y = min(h + y + margin, image_height)
+    # 防止越界
+    x = max(0, x - margin)
+    y = max(0, y - margin)
+    to_x = max(0, to_x)
+    to_y = max(0, to_y)
+    # 按区域截取图片
+    crop_img = image[:, y:to_y, x:to_x, :]
+    return crop_img
+
+
 def set_hook(diffusion_model, target_forward_orig):
     # comfy.ldm.flux.model.Flux.old_forward_orig_for_pulid = comfy.ldm.flux.model.Flux.forward_orig
     # comfy.ldm.flux.model.Flux.forward_orig = pulid_forward_orig
@@ -479,6 +613,8 @@ NODE_CLASS_MAPPINGS = {
     "PulidFluxEvaClipLoader": PulidFluxEvaClipLoader,
     "ApplyPulidFlux": ApplyPulidFlux,
     "FixPulidFluxPatch": FixPulidFluxPatch,
+    "PulidFluxOptions": PulidFluxOptions,
+    "PulidFluxFaceDetector": PulidFluxFaceDetector,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -487,4 +623,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PulidFluxEvaClipLoader": "Load Eva Clip (PuLID Flux)",
     "ApplyPulidFlux": "Apply PuLID Flux",
     "FixPulidFluxPatch": "Fix PuLID Flux Patch",
+    "PulidFluxOptions": "Pulid Flux Options",
+    "PulidFluxFaceDetector": "Pulid Flux Face Detector",
 }

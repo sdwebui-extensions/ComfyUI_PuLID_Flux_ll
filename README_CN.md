@@ -10,6 +10,8 @@
 ComfyUI主体版本需要>=0.3.7
 
 ## 更新日志
+### 2025.02.18
+- 支持从含有多张脸的图片中选择一张脸作为参考。
 ### 2025.01.27
 - 修改 facexlib 的模型路径为 `ComfyUI/models/facexlib/`.
 - 自动下载时 修改 Antelopev2 模型的路径为 `ComfyUI/models/insightface/models/antelopev2/`.
@@ -18,6 +20,7 @@ ComfyUI主体版本需要>=0.3.7
 ## 预览 (图片含工作流)
 ![save api extended](examples/PuLID_with_speedup.png)
 ![save api extended](examples/PuLID_with_attn_mask.png)
+![save api extended](examples/PuLID_select_ref_face.png)
 
 ## 安装
 
@@ -69,6 +72,18 @@ Failed to build insightface
   - 使用 [Comfy-WaveSpeed](https://github.com/chengzeyi/Comfy-WaveSpeed)加速, 必须加在[`ApplyFBCacheOnModel`](https://github.com/lldacing/ComfyUI_Patches_ll)之前.
 - FixPulidFluxPatch (已弃用)
   - 如果想使用 [TeaCache](https://github.com/ali-vilab/TeaCache)加速, 必须加在 `ApplyPulidFlux` 节点之后, 并在后面连接节点 [`FluxForwardOverrider` and `ApplyTeaCachePatch`](https://github.com/lldacing/ComfyUI_Patches_ll).
+- PulidFluxOptions
+  - `input_faces_order` - 对检测到的脸部边界框的排序规则。
+    - `left-right`: 按列从左到右对bbox的左边界进行排序。
+    - `right-left`: `left-right`的倒序（按列从右到左对bbox的左边界进行排序）。
+    - `top-bottom`: 按行从上到下对bbox的顶部边界进行排序。
+    - `bottom-top`: `top-bottom`的倒序（按行从下到上对bbox的顶部边界进行排序）。
+    - `small-large`: 按bbox的面积从小到大排序。
+    - `large-small`: 按bbox的面积从大到小排序。
+  - `input_faces_index` - 从排序后的bbox选取的索引号。
+- PulidFluxFaceDetector
+  - 用来检查在`ApplyPulidFlux`实际使用的面部特征。
+  - `embed_face` 和 `align_face` 理论上应该是同一张脸，但它们产生不同的探测器，可能检测到的数量不一致，因此两张图可能不是同一张脸。
 
 ## 感谢
 

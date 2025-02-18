@@ -10,6 +10,8 @@ Must uninstall or disable `ComfyUI-PuLID-Flux` and other PuLID-Flux nodes before
 Need upgrade ComfyUI Version>=0.3.7
 
 ## Update logs
+### 2025.02.18
+- Supported selecting a face from multiple faces as a reference.
 ### 2025.01.27
 - Changed the model path of facexlib to `ComfyUI/models/facexlib/`.
 - When automatically downloading, modify the path of Antelope v2 model to `ComfyUI/models/insightface/models/antelopev2/`.
@@ -18,6 +20,7 @@ Need upgrade ComfyUI Version>=0.3.7
 ## Preview (Image with WorkFlow)
 ![save api extended](examples/PuLID_with_speedup.png)
 ![save api extended](examples/PuLID_with_attn_mask.png)
+![save api extended](examples/PuLID_select_ref_face.png)
 
 ## Install
 
@@ -73,6 +76,18 @@ Failed to build insightface
   - If you want use with [Comfy-WaveSpeed](https://github.com/chengzeyi/Comfy-WaveSpeed), must put it before node `ApplyFBCacheOnModel`.
 - FixPulidFluxPatch (Deprecated)
   - If you want use with [TeaCache](https://github.com/ali-vilab/TeaCache), must link it after node `ApplyPulidFlux`, and link node [`FluxForwardOverrider` and `ApplyTeaCachePatch`](https://github.com/lldacing/ComfyUI_Patches_ll) after it.
+- PulidFluxOptions
+  - `input_faces_order` - Sorting rule for detected bboxes.
+    - `left-right`: Sort the left boundary of bbox by column from left to right.
+    - `right-left`: Reverse order of `left-right` (Sort the left boundary of bbox by column from right to left).
+    - `top-bottom`: Sort the top boundary of bbox by row from top to bottom.
+    - `bottom-top`: Reverse order of `top-bottom` (Sort the top boundary of bbox by row from bottom to top).
+    - `small-large`: Sort the area of bbox from small to large.
+    - `large-small`: Sort the area of bbox from large to small.
+  - `input_faces_index` - The target index of the sorted bboxes.
+- PulidFluxFaceDetector
+  - Can check the facial features applied in `ApplyPulidFlux`.
+  - The `embed_face` and `align_face` should be the same face, but they produce different detectors, and the number detected may be not consistent, so they may be not the same face.
 
 ## Thanks
 
