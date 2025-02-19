@@ -11,7 +11,7 @@ ComfyUI主体版本需要>=0.3.7
 
 ## 更新日志
 ### 2025.02.18
-- 支持从含有多张脸的图片中选择一张脸作为参考。
+- 支持从含有多张脸的图片中选择一张脸作为参考。[示例工作流](examples/PuLID_select_ref_face.png).
 ### 2025.01.27
 - 修改 facexlib 的模型路径为 `ComfyUI/models/facexlib/`.
 - 自动下载时 修改 Antelopev2 模型的路径为 `ComfyUI/models/insightface/models/antelopev2/`.
@@ -83,7 +83,7 @@ Failed to build insightface
   - `input_faces_index` - 从排序后的bbox选取的索引号。
 - PulidFluxFaceDetector
   - 用来检查在`ApplyPulidFlux`实际使用的面部特征。
-  - `embed_face` 和 `align_face` 理论上应该是同一张脸，但它们产生不同的探测器，可能检测到的数量不一致，因此两张图可能不是同一张脸。
+  - `embed_face` 和 `align_face` 理论上应该是同一张脸，但它们由不同的检测器产生，可能检测到的数量不一致，因此两张图可能不是同一张脸。
 
 ## 感谢
 
