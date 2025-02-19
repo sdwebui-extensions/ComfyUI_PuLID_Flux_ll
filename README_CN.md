@@ -10,6 +10,8 @@
 ComfyUI主体版本需要>=0.3.7
 
 ## 更新日志
+### 2025.02.19
+- 解决多张人脸时选择的人脸嵌入量和对齐特征不是同一个人脸的问题。
 ### 2025.02.18
 - 支持从含有多张脸的图片中选择一张脸作为参考。[示例工作流](examples/PuLID_select_ref_face.png).
 ### 2025.01.27
@@ -81,9 +83,15 @@ Failed to build insightface
     - `small-large`: 按bbox的面积从小到大排序。
     - `large-small`: 按bbox的面积从大到小排序。
   - `input_faces_index` - 从排序后的bbox选取的索引号。
+  - `input_faces_align_mode` - 选择对齐脸部特征的检测方式。
+    - `0`: 旧版本方式，一张图片中有张脸时选择的脸部嵌入量和对齐特征可能不一致。
+    - `1`: 保持选择的脸部嵌入量和对齐特征一致。
+    - 两种出图有细微差别，值`1`的`align_face`结果图比`0`的`embed_face`范围小一点。
 - PulidFluxFaceDetector
   - 用来检查在`ApplyPulidFlux`实际使用的面部特征。
-  - `embed_face` 和 `align_face` 理论上应该是同一张脸，但它们由不同的检测器产生，可能检测到的数量不一致，因此两张图可能不是同一张脸。
+  - `input_faces_align_mode = 0`时，`embed_face` 和 `align_face` 理论上应该是同一张脸，但它们由不同的检测器产生，可能检测到的数量不一致，因此两张图可能不是同一张脸。
+  - `input_faces_align_mode = 1`时，`embed_face` 和 `align_face` 由相同的检测器产生，两张图始终是同一张脸。
+  - `face_bbox_image` - 画出检测到的脸部边界框（`embed_face`的检测器结果）。
 
 ## 感谢
 

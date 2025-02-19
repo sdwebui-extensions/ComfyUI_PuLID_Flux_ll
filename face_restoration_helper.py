@@ -37,8 +37,8 @@ def get_face_by_index(det_faces, face_sort_rule, face_index=0):
     if not 0 <= face_index < len(sorted_faces):
         # 返回第一个
         face_index = 0
-    # 返回选择的脸部、原始索引值和排序后的bbox列表
-    return sorted_faces[face_index][1], sorted_faces[face_index][0], [face[1].bbox if has_bbox_attr else face[1] for face in sorted_faces]
+    # 返回选择的脸部、原始索引值和排序后的列表
+    return sorted_faces[face_index][1], sorted_faces[face_index][0], [face[1] for face in sorted_faces]
 
 
 def get_largest_face(det_faces, h, w):
@@ -172,7 +172,8 @@ class FaceRestoreHelper(object):
             input_img = cv2.resize(self.input_img, (w, h), interpolation=cv2.INTER_LANCZOS4)
 
         with torch.no_grad():
-            bboxes = self.face_det.detect_faces(input_img, 0.97) * scale
+            # use 0.5 (old value is 0.97), keep consistent with Insightface, but still cannot ensure consistent quantity of bboxes.
+            bboxes = self.face_det.detect_faces(input_img, 0.5) * scale
         for bbox in bboxes:
             # remove faces with too small eye distance: side faces or too small faces
             eye_dist = np.linalg.norm([bbox[5] - bbox[7], bbox[6] - bbox[8]])
@@ -420,3 +421,36 @@ class FaceRestoreHelper(object):
         self.inverse_affine_matrices = []
         self.det_faces = []
         self.pad_input_imgs = []
+
+def draw_on(img, faces):
+    dimg = img.copy()
+    for i in range(len(faces)):
+        face = faces[i]
+        box = face.bbox.astype(np.int32)
+        color = (0, 0, 255)
+        cv2.rectangle(dimg, (box[0], box[1]), (box[2], box[3]), color, 2)
+        if face.kps is not None:
+            kps = face.kps.astype(np.int32)
+            #print(landmark.shape)
+            for l in range(kps.shape[0]):
+                color = (0, 0, 255)
+                if l == 0 or l == 3:
+                    color = (0, 255, 0)
+                cv2.circle(dimg, (kps[l][0], kps[l][1]), 1, color,
+                           2)
+
+        cv2.putText(dimg,'index: %d'%i, (box[0]-1, box[1]-4),cv2.FONT_HERSHEY_COMPLEX,0.7,(0,255,0),1)
+
+        # if face.gender is not None and face.age is not None:
+        #     cv2.putText(dimg,'%s,%d'%(face.sex,face.age), (box[0]-1, box[1]-4),cv2.FONT_HERSHEY_COMPLEX,0.7,(0,255,0),1)
+
+        #for key, value in face.items():
+        #    if key.startswith('landmark_3d'):
+        #        print(key, value.shape)
+        #        print(value[0:10,:])
+        #        lmk = np.round(value).astype(np.int)
+        #        for l in range(lmk.shape[0]):
+        #            color = (255, 0, 0)
+        #            cv2.circle(dimg, (lmk[l][0], lmk[l][1]), 1, color,
+        #                       2)
+    return dimg

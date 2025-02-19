@@ -1,9 +1,11 @@
 import types
 import zipfile
 
+import cv2
 import torch
 from insightface.utils.download import download_file
 from insightface.utils.storage import BASE_REPO_URL
+from insightface.utils import face_align
 from torch import nn
 from torchvision import transforms
 from torchvision.transforms import functional
@@ -12,7 +14,7 @@ import logging
 import folder_paths
 import comfy
 from insightface.app import FaceAnalysis
-from .face_restoration_helper import FaceRestoreHelper, get_face_by_index
+from .face_restoration_helper import FaceRestoreHelper, get_face_by_index, draw_on
 
 from comfy import model_management
 from .eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
@@ -280,6 +282,7 @@ class ApplyPulidFlux:
 
         input_face_sort = options.get('input_faces_order', "large-small")
         input_face_index = options.get('input_faces_index', 0)
+        input_face_align_mode = options.get('input_faces_align_mode', 1)
         # Analyse multiple images at multiple sizes and combine largest area embeddings
         for i in range(image.shape[0]):
             # get insightface embeddings
@@ -289,7 +292,8 @@ class ApplyPulidFlux:
                 face_analysis.det_model.input_size = size
                 face_info = face_analysis.get(image[i])
                 if face_info:
-                    face_info, index, bboxes = get_face_by_index(face_info, face_sort_rule=input_face_sort, face_index=input_face_index)
+                    face_info, index, sorted_faces = get_face_by_index(face_info, face_sort_rule=input_face_sort, face_index=input_face_index)
+                    bboxes = [face.bbox for face in sorted_faces]
                     iface_embeds = torch.from_numpy(face_info.embedding).unsqueeze(0).to(device, dtype=dtype)
                     break
             else:
@@ -297,18 +301,26 @@ class ApplyPulidFlux:
                 logging.warning(f'Warning: No face detected in image {str(i)}')
                 continue
 
-            # get eva_clip embeddings
-            face_helper.clean_all()
-            face_helper.read_image(image[i])
-            face_helper.get_face_landmarks_5(ref_sort_bboxes=bboxes, face_index=input_face_index)
-            face_helper.align_warp_face()
+            if input_face_align_mode == 1:
+                image_size = 512
+                M = face_align.estimate_norm(face_info.kps, image_size=image_size)
+                align_face = cv2.warpAffine(image[i], M, (image_size, image_size), borderMode=cv2.BORDER_CONSTANT,
+                                            borderValue=(135, 133, 132))
+                # align_face = face_align.norm_crop(image[i], landmark=face_info.kps, image_size=image_size)
+                del M
+            else:
+                # get eva_clip embeddings
+                face_helper.clean_all()
+                face_helper.read_image(image[i])
+                face_helper.get_face_landmarks_5(ref_sort_bboxes=bboxes, face_index=input_face_index)
+                face_helper.align_warp_face()
 
-            if len(face_helper.cropped_faces) == 0:
-                # No face detected, skip this image
-                continue
+                if len(face_helper.cropped_faces) == 0:
+                    # No face detected, skip this image
+                    continue
 
-            # Get aligned face image
-            align_face = face_helper.cropped_faces[0]
+                # Get aligned face image
+                align_face = face_helper.cropped_faces[0]
             # Convert bgr face image to tensor
             align_face = image_to_tensor(align_face).unsqueeze(0).permute(0, 3, 1, 2).to(device)
             parsing_out = face_helper.face_parse(functional.normalize(align_face, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))[0]
@@ -341,6 +353,7 @@ class ApplyPulidFlux:
         if not cond:
             # No faces detected, return the original model
             logging.warning("PuLID warning: No faces detected in any of the given images, returning unmodified model.")
+            del eva_clip, face_analysis, pulid_flux, face_helper, attn_mask
             return (model,)
 
         # average embeddings
@@ -437,6 +450,13 @@ class PulidFluxOptions:
                                           "default": 0, "min": 0, "max": 1000, "step": 1,
                                           "tooltip": "If the value is greater than the size of bboxes, will set value to 0."
                                       }),
+                "input_faces_align_mode": ("INT",
+                                      {
+                                          "default": 1, "min": 0, "max": 1, "step": 1,
+                                          "tooltip": "Align face mode.\n"
+                                                     "0: align_face and embed_face use different detectors. The results maybe different.\n"
+                                                     "1: align_face and embed_face use the same detector."
+                                      }),
             }
         }
 
@@ -444,10 +464,11 @@ class PulidFluxOptions:
     FUNCTION = "execute"
     CATEGORY = "pulid"
 
-    def execute(self,input_faces_order, input_faces_index):
+    def execute(self,input_faces_order, input_faces_index, input_faces_align_mode=1):
         options: dict = {
             "input_faces_order": input_faces_order,
             "input_faces_index": input_faces_index,
+            "input_faces_align_mode": input_faces_align_mode,
         }
         return (options, )
 
@@ -463,31 +484,36 @@ class PulidFluxFaceDetector:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "IMAGE",)
-    RETURN_NAMES = ("embed_face", "align_face")
+    RETURN_TYPES = ("IMAGE", "IMAGE", "IMAGE",)
+    RETURN_NAMES = ("embed_face", "align_face", "face_bbox_image",)
     FUNCTION = "execute"
     CATEGORY = "pulid"
-    OUTPUT_IS_LIST = (True, True,)
+    OUTPUT_IS_LIST = (True, True, True,)
 
     def execute(self, face_analysis, image, options):
 
         device = comfy.model_management.get_torch_device()
-        face_helper = FaceRestoreHelper(
-            upscale_factor=1,
-            face_size=512,
-            crop_ratio=(1, 1),
-            det_model='retinaface_resnet50',
-            parsing_model='bisenet',
-            save_ext='png',
-            device=device,
-            model_rootpath=FACEXLIB_DIR
-        )
 
         input_face_sort = options.get('input_faces_order', "large-small")
         input_face_index = options.get('input_faces_index', 0)
+        input_face_align_mode = options.get('input_faces_align_mode', 1)
+
+        if input_face_align_mode == 0:
+            face_helper = FaceRestoreHelper(
+                upscale_factor=1,
+                face_size=512,
+                crop_ratio=(1, 1),
+                det_model='retinaface_resnet50',
+                parsing_model='bisenet',
+                save_ext='png',
+                device=device,
+                model_rootpath=FACEXLIB_DIR
+            )
+
         # Analyse multiple images at multiple sizes and combine largest area embeddings
         embed_faces=[]
         align_faces=[]
+        draw_embed_face_bbox=[]
         image = tensor_to_image(image)
         for i in range(image.shape[0]):
             bboxes = []
@@ -495,36 +521,46 @@ class PulidFluxFaceDetector:
                 face_analysis.det_model.input_size = size
                 face_info = face_analysis.get(image[i])
                 if face_info:
-                    face_info, index, bboxes = get_face_by_index(face_info, face_sort_rule=input_face_sort,
+                    face_info, index, sorted_faces = get_face_by_index(face_info, face_sort_rule=input_face_sort,
                                                          face_index=input_face_index)
+                    bboxes = [face.bbox for face in sorted_faces]
                     embed_faces.append(crop_image(image[i], face_info.bbox, margin=10))
+                    draw_embed_face_bbox.append(image_to_tensor(draw_on(image[i], sorted_faces)).unsqueeze(0))
                     break
             else:
                 # No face detected, skip this image
                 logging.warning(f'Warning: No face detected in image {str(i)}')
                 continue
 
-            # get eva_clip embeddings
-            face_helper.clean_all()
-            face_helper.read_image(image[i])
-            face_helper.get_face_landmarks_5(ref_sort_bboxes=bboxes, face_index=input_face_index)
-            face_helper.align_warp_face()
+            if input_face_align_mode == 1:
+                image_size = 512
+                M = face_align.estimate_norm(face_info.kps, image_size=image_size)
+                align_face = cv2.warpAffine(image[i], M, (image_size, image_size), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+                # align_face = face_align.norm_crop(image[i], landmark=face_info.kps, image_size=image_size)
+                del M
+            else:
+                # get eva_clip embeddings
+                face_helper.clean_all()
+                face_helper.read_image(image[i])
+                face_helper.get_face_landmarks_5(ref_sort_bboxes=bboxes, face_index=input_face_index)
+                face_helper.align_warp_face()
 
-            if len(face_helper.cropped_faces) == 0:
-                # No face detected, skip this image
-                continue
+                if len(face_helper.cropped_faces) == 0:
+                    # No face detected, skip this image
+                    continue
 
-            # Get aligned face image
-            align_face = face_helper.cropped_faces[0]
+                # Get aligned face image
+                align_face = face_helper.cropped_faces[0]
+                del face_helper
             align_faces.append(image_to_tensor(align_face).unsqueeze(0))
             del bboxes, align_face
-        del face_helper, image
+        del image
         if len(embed_faces) == 0:
             # No face detected, skip this image
             logging.warning(f'Warning: No embed face detected in image')
         if  len(align_faces) == 0:
             logging.warning(f'Warning: No align face detected in image')
-        return embed_faces, align_faces,
+        return embed_faces, align_faces, draw_embed_face_bbox,
 
 
 def crop_image(image, bbox, margin=0):
