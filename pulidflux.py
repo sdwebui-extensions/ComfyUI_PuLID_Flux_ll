@@ -644,21 +644,21 @@ def pulid_apply_model_wrappers(wrapper_executor, x, t, c_concat=None, c_crossatt
     return out
 
 NODE_CLASS_MAPPINGS = {
-    "PulidFluxModelLoader": PulidFluxModelLoader,
-    "PulidFluxInsightFaceLoader": PulidFluxInsightFaceLoader,
-    "PulidFluxEvaClipLoader": PulidFluxEvaClipLoader,
-    "ApplyPulidFlux": ApplyPulidFlux,
-    "FixPulidFluxPatch": FixPulidFluxPatch,
-    "PulidFluxOptions": PulidFluxOptions,
-    "PulidFluxFaceDetector": PulidFluxFaceDetector,
+    "PulidFluxIIModelLoader": PulidFluxModelLoader,
+    "PulidFluxIIInsightFaceLoader": PulidFluxInsightFaceLoader,
+    "PulidFluxIIEvaClipLoader": PulidFluxEvaClipLoader,
+    "ApplyPulidFluxII": ApplyPulidFlux,
+    "FixPulidFluxIIPatch": FixPulidFluxPatch,
+    "PulidFluxIIOptions": PulidFluxOptions,
+    "PulidFluxIIFaceDetector": PulidFluxFaceDetector,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PulidFluxModelLoader": "Load PuLID Flux Model",
-    "PulidFluxInsightFaceLoader": "Load InsightFace (PuLID Flux)",
-    "PulidFluxEvaClipLoader": "Load Eva Clip (PuLID Flux)",
-    "ApplyPulidFlux": "Apply PuLID Flux",
-    "FixPulidFluxPatch": "Fix PuLID Flux Patch",
-    "PulidFluxOptions": "Pulid Flux Options",
-    "PulidFluxFaceDetector": "Pulid Flux Face Detector",
+    "PulidFluxIIModelLoader": "Load PuLID Flux Model",
+    "PulidFluxIIInsightFaceLoader": "Load InsightFace (PuLID Flux)",
+    "PulidFluxIIEvaClipLoader": "Load Eva Clip (PuLID Flux)",
+    "ApplyPulidFluxII": "Apply PuLID Flux",
+    "FixPulidFluxIIPatch": "Fix PuLID Flux Patch",
+    "PulidFluxIIOptions": "Pulid Flux Options",
+    "PulidFluxIIFaceDetector": "Pulid Flux Face Detector",
 }
